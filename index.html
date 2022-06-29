@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="stylesheet"
+      href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
+      integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://bootswatch.com/4/journal/bootstrap.min.css"
+    />
+    <!-- MDB -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/3.10.2/mdb.min.css"
+      rel="stylesheet"
+    />
+    <title>CSC3007 Assignment 3</title>
+  </head>
+  <body>
+    <div class="container"><div class="row mt-12">
+      <svg></svg>
+      <div id="faketooltip"></div>
+      
+      </div>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.13.0/d3-legend.js"></script>
+
+    <script>
+      // set the width and height to be responsive
+      let width = window.innerWidth,
+        height = window.innerHeight;
+      let svg = d3.select("svg").attr("viewBox", "0 0 " + width + " " + height);
+      var colours= ["#fc9272","#fb6a4a","#ef3b2c","#cb181d","#99000d"];
+      // Load external data
+      Promise.all([d3.json("sgmap.json"), d3.csv("population2021.csv")]).then(
+        (data) => {
+          // console.log(data[0].features); // SG Map
+          // console.log(data[1][0].Subzone); // Population
+
+          // Iterate through Population object and SG Map object. I do like 2 days :(
+          data[1].forEach(function (populationObject) {
+            for (var i = 0; i < data[0].features.length; i++) {
+              var populationName = String(
+                populationObject.Subzone
+              ).toUpperCase();
+
+              var SGMapName = String(
+                data[0].features[i].properties.Name
+              ).toUpperCase();
+
+              if (SGMapName === populationName) {
+                //  console.log("inside");
+                var populationNumber = populationObject.Population;
+                if (populationNumber === "-") {
+                  data[0].features[i].properties.Population = 0;
+                } else {
+                  data[0].features[i].properties.Population = +populationNumber;
+                }
+              }
+            }
+          });
+
+          console.log(data[0].features[2].properties.Population);
+
+          function formatCase(str) {
+            str = str.toLowerCase().split(" ");
+            for (var i = 0; i < str.length; i++) {
+              str[i] = str[i].charAt(0).toUpperCase() + str[i].slice(1);
+            }
+            return str.join(" ");
+          }
+
+          // Map and projection
+          var projection = d3
+            .geoMercator()
+            .center([103.851959, 1.29027])
+            .fitExtent(
+              [
+                [20, 20],
+                [980, 580],
+              ],
+              data[0]
+            );
+
+          let geopath = d3.geoPath().projection(projection);
+          svg
+            .append("g")
+            .attr("class", "legendSequential")
+            .attr("transform", "translate(20,20)");
+          svg
+            .append("g")
+            .attr("id", "districts")
+            .selectAll("path")
+            .data(data[0].features)
+            .enter()
+            .append("path")
+            .attr("d", geopath)
+            .attr("fill", function (fill) {
+              if (fill.properties.Population === undefined || fill.properties.Population <20000) {
+                return colours[0];
+              } else
+              if ( fill.properties.Population > 20000 &&
+                fill.properties.Population < 40000) {
+                return colours[1];
+              } else if (
+                fill.properties.Population > 40000 &&
+                fill.properties.Population < 60000
+              ) {
+                return colours[2];
+              } else if (
+                fill.properties.Population > 60000 &&
+                fill.properties.Population < 80000
+              ) {
+                return colours[3];
+              } else if (
+                fill.properties.Population > 80000 &&
+                fill.properties.Population < 100000
+              ) {
+                return "#cb181d";
+              } else if (fill.properties.Population > 100000) {
+                return colours[4];
+              }
+            })
+            .on("mouseover", (event, d) => {
+              d3.select("#faketooltip")
+                .text(
+                  formatCase(d.properties.Name) +
+                    " Estate Population: " +
+                    d.properties.Population
+                )
+                .style("left", event.pageX + "px")
+                .style("top", event.pageY + "px");
+            })
+            .on("mouseout", (event, d) => {
+              d3.select("#faketooltip").text("");
+            });
+        }
+      );
+
+      var labels = [
+        "20K",
+        "40K",
+        "60K",
+        "80K",
+        "100K",
+      ];
+      var colorScale = d3.scaleThreshold().range(colours);
+      var legend = d3
+        .legendColor()
+        .scale(colorScale)
+        .shapeWidth(60)
+        .orient("horizontal")
+        .title("Population Count")
+        .labels(labels);
+
+      svg.append("g").attr("transform", "translate(20,600)").call(legend);
+    </script>
+  </body>
+</html>
